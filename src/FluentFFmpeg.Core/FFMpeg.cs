@@ -10,7 +10,9 @@ namespace FluentFFmpeg.Core
     public interface IFFmpeg
     {
         void Execute(Instruction instruction);
+        void Execute(string instruction);
         Task ExecuteAsync(Instruction instruction, CancellationToken token);
+        Task ExecuteAsync(string instruction, CancellationToken token);
     }
 
     public class FFmpeg : IFFmpeg
@@ -22,6 +24,11 @@ namespace FluentFFmpeg.Core
 
         public void Execute(Instruction instruction)
         {
+            Execute(instruction.ToString());
+        }
+
+        public void Execute(string instruction)
+        {
             using (var process = new Process())
             {
                 process.StartInfo = StartInfo(instruction);
@@ -30,11 +37,16 @@ namespace FluentFFmpeg.Core
 
         public async Task ExecuteAsync(Instruction instruction, CancellationToken token = default)
         {
+            await ExecuteAsync(instruction.ToString(), token);
+        }
+
+        public async Task ExecuteAsync(string instruction, CancellationToken token = default)
+        {
             using (var process = new Process())
             {
                 process.StartInfo = StartInfo(instruction);
 
-                var outputCompleted = new TaskCompletionSource<bool>();
+                var outputCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 process.ErrorDataReceived += (s, e) =>
                 {
                     if (string.IsNullOrEmpty(e.Data))
@@ -99,11 +111,11 @@ namespace FluentFFmpeg.Core
             Success?.Invoke(e);
         }
 
-        private static ProcessStartInfo StartInfo(Instruction instruction) => new ProcessStartInfo
+        private static ProcessStartInfo StartInfo(string instruction) => new ProcessStartInfo
         {
-            Arguments = instruction.ToString(),
-            FileName = "ffmpeg",
+            Arguments = instruction,
             CreateNoWindow = true,
+            FileName = "ffmpeg",
             UseShellExecute = false,
             RedirectStandardInput = false,
             RedirectStandardOutput = true,
@@ -113,7 +125,7 @@ namespace FluentFFmpeg.Core
 
         private Task<bool> WaitForExitAsync(Process process, CancellationToken token)
         {
-            var exitCompleted = new TaskCompletionSource<bool>();
+            var exitCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             process.EnableRaisingEvents = true;
             process.Exited += (s, e) => 

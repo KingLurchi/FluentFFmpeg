@@ -14,7 +14,7 @@ namespace FluentFFmpeg.Test
         private const string Input = @"";  // use some non x265 video as input
         private const string Output = @""; // convert to x265
 
-        private Instruction Setup()
+        private Instruction GetInstruction()
         {
             if(!File.Exists(Input))
                 throw new FileNotFoundException("", Input);
@@ -38,7 +38,7 @@ namespace FluentFFmpeg.Test
         [Test]
         public void ExecuteInstruction()
         {
-            var instruction = Setup();
+            var instruction = GetInstruction();
 
             var ffmpeg = new FFmpeg();
             ffmpeg.Progress += e => { Debug.WriteLine(e); };
@@ -48,7 +48,7 @@ namespace FluentFFmpeg.Test
         [Test]
         public async Task ExecuteInstructionAsync()
         {
-            var instruction = Setup();
+            var instruction = GetInstruction();
 
             var ffmpeg = new FFmpeg();
             ffmpeg.Progress += e => { Debug.WriteLine(e); };
