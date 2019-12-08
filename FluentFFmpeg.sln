@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.102
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.452
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentFFmpeg.Core", "src\FluentFFmpeg.Core\FluentFFmpeg.Core.csproj", "{02A64A74-28E9-4D0F-8FA1-FA97CED66F54}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FluentFFmpeg.Test", "test\FluentFFmpeg.Test\FluentFFmpeg.Test.csproj", "{ABBAE906-FD48-485F-833B-EEC7895EAC47}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentFFmpeg.Test", "test\FluentFFmpeg.Test\FluentFFmpeg.Test.csproj", "{ABBAE906-FD48-485F-833B-EEC7895EAC47}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,10 +1,13 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentFFmpeg.Core;
 using FluentFFmpeg.Core.Constants;
 using FluentFFmpeg.Core.Extensions;
 using FluentFFmpeg.Core.Models;
+using FluentFFmpeg.Core.Options;
 using NUnit.Framework;
 
 namespace FluentFFmpeg.Test
@@ -53,6 +56,24 @@ namespace FluentFFmpeg.Test
             var ffmpeg = new FFmpeg();
             ffmpeg.Progress += e => { Debug.WriteLine(e); };
             await ffmpeg.ExecuteAsync(instruction);
+        }
+
+        [Test]
+        public async Task ConvertFromAacToMp3Async()
+        {
+            var ffmpeg = new FFmpeg();
+            ffmpeg.Progress += e => { Debug.WriteLine(e); };
+
+            var files = Directory.EnumerateFiles(@"", "*.aac").Select(x => new FileInfo(x));
+            foreach (var file in files)
+            {
+                var instruction = new InstructionRoot()
+                        .AddInput(new Input(file.FullName))
+                        .AddOutput(new Output(file.FullName.Replace(".aac", ".mp3")))
+                        .GetInstruction();
+
+                await ffmpeg.ExecuteAsync(instruction);
+            }
         }
     }
 }
