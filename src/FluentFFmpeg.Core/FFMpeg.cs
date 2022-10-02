@@ -5,136 +5,133 @@ using System.Threading.Tasks;
 using FluentFFmpeg.Core.Events;
 using FluentFFmpeg.Core.Models;
 
-namespace FluentFFmpeg.Core
+namespace FluentFFmpeg.Core;
+
+public interface IFFmpeg
 {
-    public interface IFFmpeg
+    void Execute(Instruction instruction);
+    void Execute(string instruction);
+    Task ExecuteAsync(Instruction instruction, CancellationToken token);
+    Task ExecuteAsync(string instruction, CancellationToken token);
+}
+
+public class FFmpeg : IFFmpeg
+{
+    public event Action<ExceptionEventArgs> Exception;
+    public event Action<InfoEventArgs> Info;
+    public event Action<ProgressEventArgs> Progress;
+    public event Action<SuccessEventArgs> Success;
+
+    public void Execute(Instruction instruction)
     {
-        void Execute(Instruction instruction);
-        void Execute(string instruction);
-        Task ExecuteAsync(Instruction instruction, CancellationToken token);
-        Task ExecuteAsync(string instruction, CancellationToken token);
+        Execute(instruction.ToString());
     }
 
-    public class FFmpeg : IFFmpeg
+    public void Execute(string instruction)
     {
-        public event Action<ExceptionEventArgs> Exception;
-        public event Action<InfoEventArgs> Info;
-        public event Action<ProgressEventArgs> Progress;
-        public event Action<SuccessEventArgs> Success;
-
-        public void Execute(Instruction instruction)
+        using (var process = new Process())
         {
-            Execute(instruction.ToString());
+            process.StartInfo = StartInfo(instruction);
         }
+    }
 
-        public void Execute(string instruction)
+    public async Task ExecuteAsync(Instruction instruction, CancellationToken token = default)
+        => await ExecuteAsync(instruction.ToString(), token);
+
+    public async Task ExecuteAsync(string instruction, CancellationToken token = default)
+    {
+        using (var process = new Process())
         {
-            using (var process = new Process())
+            process.StartInfo = StartInfo(instruction);
+
+            var outputCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            process.ErrorDataReceived += (s, e) =>
             {
-                process.StartInfo = StartInfo(instruction);
+                if (string.IsNullOrEmpty(e.Data))
+                    outputCompleted.SetResult(true);
+                else if(e.Data.StartsWith("frame="))
+                    OnProgressReceived(new ProgressEventArgs(e.Data));
+                else
+                    OnInfoReceived(new InfoEventArgs(e.Data));
+            };
+
+            try
+            {
+                process.Start();
             }
-        }
-
-        public async Task ExecuteAsync(Instruction instruction, CancellationToken token = default)
-        {
-            await ExecuteAsync(instruction.ToString(), token);
-        }
-
-        public async Task ExecuteAsync(string instruction, CancellationToken token = default)
-        {
-            using (var process = new Process())
+            catch (Exception e)
             {
-                process.StartInfo = StartInfo(instruction);
+                OnExceptionReceived(new ExceptionEventArgs(e));
+                return;
+            }
 
-                var outputCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                process.ErrorDataReceived += (s, e) =>
-                {
-                    if (string.IsNullOrEmpty(e.Data))
-                        outputCompleted.SetResult(true);
-                    else if(e.Data.StartsWith("frame="))
-                        OnProgressReceived(new ProgressEventArgs(e.Data));
-                    else
-                        OnInfoReceived(new InfoEventArgs(e.Data));
-                };
+            process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
 
+            var exitTask = WaitForExitAsync(process, token);
+            var processTask = Task.WhenAll(exitTask, outputCompleted.Task);
+
+            if (await Task.WhenAny(processTask) == processTask && exitTask.Result)
+            {
+                OnSuccessReceived(new SuccessEventArgs(true));
+            }
+            else
+            {
                 try
                 {
-                    process.Start();
+                    process.Kill();
                 }
-                catch (Exception e)
+                catch
                 {
-                    OnExceptionReceived(new ExceptionEventArgs(e));
-                    return;
-                }
-
-                process.BeginErrorReadLine();
-                process.BeginOutputReadLine();
-
-                var exitTask = WaitForExitAsync(process, token);
-                var processTask = Task.WhenAll(exitTask, outputCompleted.Task);
-
-                if (await Task.WhenAny(processTask) == processTask && exitTask.Result)
-                {
-                    OnSuccessReceived(new SuccessEventArgs(true));
-                }
-                else
-                {
-                    try
-                    {
-                        process.Kill();
-                    }
-                    catch
-                    {
-                        OnSuccessReceived(new SuccessEventArgs(false));
-                    }
+                    OnSuccessReceived(new SuccessEventArgs(false));
                 }
             }
         }
+    }
 
-        private void OnExceptionReceived(ExceptionEventArgs e)
-        {
-            Exception?.Invoke(e);
-        }
+    private void OnExceptionReceived(ExceptionEventArgs e)
+    {
+        Exception?.Invoke(e);
+    }
 
-        private void OnInfoReceived(InfoEventArgs e)
-        {
-            Info?.Invoke(e);
-        }
+    private void OnInfoReceived(InfoEventArgs e)
+    {
+        Info?.Invoke(e);
+    }
 
-        private void OnProgressReceived(ProgressEventArgs e)
-        {
-            Progress?.Invoke(e);
-        }
+    private void OnProgressReceived(ProgressEventArgs e)
+    {
+        Progress?.Invoke(e);
+    }
 
-        private void OnSuccessReceived(SuccessEventArgs e)
-        {
-            Success?.Invoke(e);
-        }
+    private void OnSuccessReceived(SuccessEventArgs e)
+    {
+        Success?.Invoke(e);
+    }
 
-        private static ProcessStartInfo StartInfo(string instruction) => new ProcessStartInfo
-        {
-            Arguments = instruction,
-            CreateNoWindow = true,
-            FileName = "ffmpeg",
-            UseShellExecute = false,
-            RedirectStandardInput = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WindowStyle = ProcessWindowStyle.Hidden
-        };
+    private static ProcessStartInfo StartInfo(string instruction) => new()
+    {
+        Arguments = instruction,
+        CreateNoWindow = true,
+        FileName = "ffmpeg",
+        UseShellExecute = false,
+        RedirectStandardInput = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        WindowStyle = ProcessWindowStyle.Hidden
+    };
 
-        private Task<bool> WaitForExitAsync(Process process, CancellationToken token)
-        {
-            var exitCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+    private Task<bool> WaitForExitAsync(Process process, CancellationToken token)
+    {
+        var exitCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            process.EnableRaisingEvents = true;
-            process.Exited += (s, e) => 
-                exitCompleted.SetResult(true);
+        process.EnableRaisingEvents = true;
+        process.Exited += (s, e) => 
+            exitCompleted.SetResult(true);
 
-            if (token != default)
-                token.Register(exitCompleted.SetCanceled);
+        if (token != default)
+            token.Register(exitCompleted.SetCanceled);
 
-            return exitCompleted.Task;
-        }
+        return exitCompleted.Task;
     }
 }

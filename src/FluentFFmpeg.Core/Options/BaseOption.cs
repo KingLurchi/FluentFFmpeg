@@ -30,9 +30,6 @@
         private string Specifier => string.IsNullOrEmpty(_specifier) ? "" : $":{_specifier}";
         private string Value => string.IsNullOrEmpty(_value) ? "" : $" {_value}";
 
-        public override string ToString()
-        {
-            return $"-{Flag}{Specifier}{Value}";
-        }
+        public override string ToString() => $"-{Flag}{Specifier}{Value}";
     }
 }
