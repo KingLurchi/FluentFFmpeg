@@ -129,10 +129,11 @@ public class CoreTest
                     Options.Output.Codec("a", "aac")
                 }))
                 .GetInstruction();
-                
-            Debug.WriteLine(instruction);
-                
+
             await ffmpeg.ExecuteAsync(instruction);
+            
+            audio.Delete();
+            video.Delete();
         }
     }
 }
