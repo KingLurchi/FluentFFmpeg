@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -65,12 +64,12 @@ public class CoreTest
         var ffmpeg = new FFmpeg();
         ffmpeg.Progress += e => { Debug.WriteLine(e); };
 
-        var files = Directory.EnumerateFiles(@"D:\Downloads", "*.aac").Select(x => new FileInfo(x));
+        var files = Directory.EnumerateFiles(@"D:\Downloads", "*.webm").Select(x => new FileInfo(x));
         foreach (var file in files)
         {
             var instruction = new InstructionRoot()
                 .AddInput(new Input(file.FullName))
-                .AddOutput(new Output(file.FullName.Replace(".aac", ".mp3")))
+                .AddOutput(new Output(file.FullName.Replace(".webm", ".mp3")))
                 .GetInstruction();
 
             await ffmpeg.ExecuteAsync(instruction);
